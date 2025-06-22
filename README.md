@@ -14,3 +14,8 @@ then do the changes and then turn the clean feed on again.
 
 then digging into HUD and changing things by those well hidden buttons.
 
+# how it works:
+
+this hardware extension runs on Raspberry Pico board with OLED display with buttons and joystick.
+when the camera is turned on, raspberry starts acting as a usb ehternet device. it assigns ip address
+for the camera using dhcp. camera parameters are controlled via blackmagic rest api.
