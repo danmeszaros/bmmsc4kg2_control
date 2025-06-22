@@ -28,14 +28,14 @@ set(PICO_BOARD pico CACHE STRING "Board type")
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
-project(usbnet C CXX ASM)
+project(bmmsc4kg2_control C CXX ASM)
 
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(usbnet
+add_executable(bmmsc4kg2_control
     main.cc
     usb_network.c
     usb_descriptors.c
@@ -49,14 +49,14 @@ add_executable(usbnet
     ../Pico-LCD-1.14/c/lib/Fonts/font8.c
 )
 
-pico_set_program_name(usbnet "usbnet")
-pico_set_program_version(usbnet "0.1")
+pico_set_program_name(bmmsc4kg2_control "bmmsc4kg2_control")
+pico_set_program_version(bmmsc4kg2_control "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
-pico_enable_stdio_uart(usbnet 1)
-pico_enable_stdio_usb(usbnet 0)
+pico_enable_stdio_uart(bmmsc4kg2_control 1)
+pico_enable_stdio_usb(bmmsc4kg2_control 0)
 
-target_include_directories(usbnet PRIVATE
+target_include_directories(bmmsc4kg2_control PRIVATE
     ${PICO_SDK_PATH}/src/rp2_common/hardware_i2c/include/
     ${PICO_SDK_PATH}/src/rp2_common/hardware_spi/include/
     ${PICO_SDK_PATH}/src/rp2_common/hardware_pwm/include/
@@ -67,7 +67,7 @@ target_include_directories(usbnet PRIVATE
 )
 
 # Add libraries to the build
-target_link_libraries(usbnet
+target_link_libraries(bmmsc4kg2_control
     pico_stdlib
     tinyusb_device
     pico_lwip
@@ -82,10 +82,10 @@ target_link_libraries(usbnet
 )
 
 # Add include directories to the build
-target_include_directories(usbnet PRIVATE
+target_include_directories(bmmsc4kg2_control PRIVATE
     ${PICO_TINYUSB_PATH}/lib/networking # for rndis_protocol.h
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
 )
 
-pico_add_extra_outputs(usbnet)
+pico_add_extra_outputs(bmmsc4kg2_control)
