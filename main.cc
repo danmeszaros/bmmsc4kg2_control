@@ -88,14 +88,20 @@ int get_json_value(const char* json, const char* key) {
 
 /** buttons ==================================== */
 
+#define BUTTON_UP 0
+#define BUTTON_DOWN 1
+#define JOY_LEFT 2
+#define JOY_RIGHT 3
+#define JOY_UP 5
+#define JOY_DOWN 4
 
 class Buttons {
 public:
 
-    const static int NUM_BUTTONS = 2;
-    static constexpr int BUTTON_PINS[NUM_BUTTONS] = {15, 17};
-    inline static volatile uint64_t last_interrupt_time[NUM_BUTTONS] = {0, 0};
-    inline static volatile bool button_pressed[NUM_BUTTONS] = {false, false};
+    const static int NUM_BUTTONS = 6;
+    static constexpr int BUTTON_PINS[NUM_BUTTONS] = {15, 17, 16, 20, 2, 18};
+    inline static volatile uint64_t last_interrupt_time[NUM_BUTTONS] = {0, 0, 0, 0, 0, 0};
+    inline static volatile bool button_pressed[NUM_BUTTONS] = {false, false, false, false, false, false};
     const static int DEBOUNCE_TIME_MS = 200;
 
     static void gpio_callback(uint gpio, uint32_t events) {
@@ -350,7 +356,7 @@ public:
     void write(const char* text, int x, int y) {
 
         // Draw text — directly pass the font
-        Paint_DrawString_EN(x, y, text, &Font16, WHITE, BLACK);
+        Paint_DrawString_EN(x, y, text, &Font24, WHITE, BLACK);
 
     }
 
@@ -403,21 +409,29 @@ public:
         char buff[16];
 
         lcd.clear();
-/*
+
+        if (cursor == 0) {
+            Paint_DrawRectangle(10, 10, 110, 40,
+                         BLACK, DOT_PIXEL_2X2, DRAW_FILL_EMPTY);
+        } else if (cursor == 1) {
+            Paint_DrawRectangle(130, 10, 230, 40,
+                         BLACK, DOT_PIXEL_2X2, DRAW_FILL_EMPTY);
+        } else if (cursor == 2) {
+            Paint_DrawRectangle(10, 50, 110, 80,
+                         BLACK, DOT_PIXEL_2X2, DRAW_FILL_EMPTY);
+        } else if (cursor == 3) {
+            Paint_DrawRectangle(130, 50, 230, 80,
+                         BLACK, DOT_PIXEL_2X2, DRAW_FILL_EMPTY);
+        }
+
         snprintf(buff, sizeof(buff), "%d", wb);
-        lcd.write(buff, 10, 20);
+        lcd.write(buff, 15, 20);
 
         snprintf(buff, sizeof(buff), "%d", gain);
-        lcd.write(buff, 40, 40);
+        lcd.write(buff, 135, 20);
 
         LCD_1IN14_Display(lcd.image);        
-*/
 
-        if (HttpClient::body) {
-            lcd.write(HttpClient::body, 10, 20);
-        } else {
-            lcd.write("NULL", 10, 20);
-        }
 
         lcd.flush();
     }
@@ -426,16 +440,30 @@ public:
         int step = 6;
 
         if (action == UP && gain + step <= 32) {
-            gain += 6;
+            gain += step;
         } else if (action == DOWN && gain - step >= -12) {
-            gain -= 6;
+            gain -= step;
         } else {
             return;
         }
 
         reqAction = SET_GAIN;
         HttpClient::sendPutInt("video/gain", "gain", gain);
+    }
 
+    void changeWB(ChangeAction action) {
+        int step = 100;
+
+        if (action == UP && wb + step <= 9900) {
+            wb += step;
+        } else if (action == DOWN && wb - step >= 2000) {
+            wb -= step;
+        } else {
+            return;
+        }
+
+        reqAction = SET_WB;
+        HttpClient::sendPutInt("video/whiteBalance", "whiteBalance", wb);
     }
 
     bool updateState() {
@@ -452,7 +480,6 @@ public:
             return false;
         }
 
-
         if (reqAction == GET_GAIN) {
             printf("in GET_GAIN\n");
             reqAction = NONE;
@@ -466,15 +493,44 @@ public:
                 gain = newGain;
 
                 return true;
-            } else {
-                /*
-                gain = -666;
-                return true;
-                */
             }
         }
 
+        if (reqAction == SET_WB) {
+            printf("in SET_WB\n");
+            HttpClient::sendGet("video/whiteBalance");
+            reqAction = GET_WB;
+            printf("next action: GET_WB\n");
+            return false;
+        }
+
+        if (reqAction == GET_WB) {
+            printf("in GET_WB\n");
+            reqAction = NONE;
+
+            printf("body received:\n====%s====\n", HttpClient::body);
+
+            int newWB = get_json_value(HttpClient::body, "whiteBalance");
+            printf("parsed value: %d\n", newWB);
+            if (newWB != UNDEF) {
+                wb = newWB;
+
+                return true;
+            } 
+        }
+
         return false;
+    }
+
+    void changeCursor(int diff) {
+        cursor += diff;
+        if (cursor < 0) {
+            cursor = 0;
+        }
+
+        if (cursor > 3) {
+            cursor = 3;
+        }
     }
 
 };
@@ -532,52 +588,36 @@ int main() {
         uint64_t seconds = microseconds / 1000000;
         uint64_t state = seconds % 2;
 
-/*
-        if (seconds > alarm) {
-            sendReq();
-            gpio_put(LED_PIN, 0);
-            sleep_ms(100);
-
-            alarm = seconds + 5; 
-        }
-*/
-
-        const char* fn = 0;
-
         //int newGain = gain;
-        if (buttons.pressed(0)) {
-            app.changeGain(App::DOWN);
+        if (buttons.pressed(JOY_UP)) {
+            if (app.cursor == 1) {
+                app.changeGain(App::DOWN);
+            } else if (app.cursor == 0) {
+                app.changeWB(App::DOWN);
+            }
         }
 
-        if (buttons.pressed(1)) {
-            app.changeGain(App::UP);
+        if (buttons.pressed(JOY_DOWN)) {
+            if (app.cursor == 1) {
+                app.changeGain(App::UP);
+            } else if (app.cursor == 0) {
+                app.changeWB(App::UP);
+            }
+        }
+
+        if (buttons.pressed(JOY_LEFT)) {
+            app.changeCursor(-1);
+            app.updateLCD(lcd);
+        }
+
+        if (buttons.pressed(JOY_RIGHT)) {
+            app.changeCursor(1);
+            app.updateLCD(lcd);
         }
 
         if (app.updateState()) {
             app.updateLCD(lcd);
         }
-
-#if 0
-/*    
-        if (HttpClient::reqDone) {
-            HttpClient::buff[300] = 0;
-
-            if (HttpClient::body) {
-                lcd.write(HttpClient::body, 10, 20);
-            }
-*/
-
-/*
-            char *pos = strstr(myBuff, "{");
-            //myBuff[100] = 0;
-            if (pos != NULL) {
-                pos[100] = 0;
-                lcd.write(pos);
-            }
-*/
-            HttpClient::reqDone = false;
-        }
-#endif
 
         // prevent cpu burning (?)
         tight_loop_contents();
