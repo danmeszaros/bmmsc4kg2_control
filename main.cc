@@ -85,6 +85,29 @@ int get_json_value(const char* json, const char* key) {
     return UNDEF;
 }
 
+#define UNDEF_BOOL -1  // or use a separate error flag
+
+int get_json_bool(const char* json, const char* key) {
+    char pattern[64];
+    snprintf(pattern, sizeof(pattern), "\"%s\":", key);
+
+    char* pos = strstr(json, pattern);
+    if (pos) {
+        pos += strlen(pattern);
+        // Skip whitespace after colon
+        while (*pos == ' ' || *pos == '\t' || *pos == '\n') {
+            pos++;
+        }
+
+        if (strncmp(pos, "true", 4) == 0) {
+            return 1;
+        } else if (strncmp(pos, "false", 5) == 0) {
+            return 0;
+        }
+    }
+
+    return UNDEF_BOOL;
+}
 
 /** buttons ==================================== */
 
@@ -116,7 +139,7 @@ public:
     
                 if (events & GPIO_IRQ_EDGE_FALL) {
                     button_pressed[i] = true;
-                    // printf("Button %d pressed\n", i);
+                    printf("Button %d pressed\n", i);
                 } else if (events & GPIO_IRQ_EDGE_RISE) {
                     // printf("Button %d released\n", i);
                     }
@@ -320,6 +343,18 @@ public:
         sendReq();
     }
 
+    static void sendPutBool(const char* method, const char* property, bool value) {
+        char buff[128];
+        snprintf(buff, sizeof(buff), "{\"%s\": %s}", property, value ? "true": "false");
+        snprintf(httpReq, sizeof(httpReq), headerPut, method, strlen(buff), buff);
+        sendReq();
+    }
+
+    static void sendPut(const char* method) {
+        snprintf(httpReq, sizeof(httpReq), headerPut, method, 0, "");
+        sendReq();
+    }
+
     static void sendGet(const char* method) {
         char buff[128];
         snprintf(httpReq, sizeof(httpReq), headerGet, method);
@@ -349,8 +384,8 @@ public:
         Paint_SetRotate(ROTATE_0);
     }
 
-    void clear() {
-        Paint_Clear(WHITE); 
+    void clear(UWORD color) {
+        Paint_Clear(color); 
     }
 
     void write(const char* text, int x, int y) {
@@ -377,15 +412,19 @@ public:
 
     int cursor;
 
+    int record;
+
     enum Action {
         NONE = 0,
         SET_GAIN = 1,
         SET_WB = 2,
         SET_SHUTTER = 3,
+        SET_RECORD = 7,
 
         GET_GAIN = 100,
         GET_WB = 101,
-        GET_SHUTTER = 102
+        GET_SHUTTER = 102,
+        GET_RECORD = 107,
     };
 
     enum ChangeAction {
@@ -403,12 +442,30 @@ public:
         shutter = 180;
 
         cursor = 0;
+
+        record = 0;
     }
 
     void updateLCD(LCD& lcd) {
         char buff[16];
 
-        lcd.clear();
+        if (record == 0) {
+            lcd.clear(WHITE);
+        } else {
+            lcd.clear(RED);
+        }
+
+        if (gain == 0 || gain == 18) {
+            Paint_DrawRectangle(130, 10, 230, 40,
+                GREEN, DOT_PIXEL_2X2, DRAW_FILL_FULL);
+        }
+
+        snprintf(buff, sizeof(buff), "%4dK", wb);
+        lcd.write(buff, 15, 20);
+
+        snprintf(buff, sizeof(buff), "%3ddB", gain);
+        lcd.write(buff, 135, 20);
+
 
         if (cursor == 0) {
             Paint_DrawRectangle(10, 10, 110, 40,
@@ -424,12 +481,6 @@ public:
                          BLACK, DOT_PIXEL_2X2, DRAW_FILL_EMPTY);
         }
 
-        snprintf(buff, sizeof(buff), "%d", wb);
-        lcd.write(buff, 15, 20);
-
-        snprintf(buff, sizeof(buff), "%d", gain);
-        lcd.write(buff, 135, 20);
-
         LCD_1IN14_Display(lcd.image);        
 
 
@@ -439,7 +490,7 @@ public:
     void changeGain(ChangeAction action) {
         int step = 6;
 
-        if (action == UP && gain + step <= 32) {
+        if (action == UP && gain + step <= 36) {
             gain += step;
         } else if (action == DOWN && gain - step >= -12) {
             gain -= step;
@@ -451,12 +502,28 @@ public:
         HttpClient::sendPutInt("video/gain", "gain", gain);
     }
 
+    void doAutoFocus() {
+        HttpClient::sendPut("lens/focus/doAutoFocus");
+    }
+
+    void toggleRecord() {
+        int newRecord = 1 - record;
+
+        reqAction = SET_RECORD;
+
+        if (newRecord == 1) {
+            HttpClient::sendPutBool("transports/0/record", "recording", newRecord == 1);
+        } else {
+            HttpClient::sendPut("transports/0/stop");
+        }
+    }
+
     void changeWB(ChangeAction action) {
         int step = 100;
 
         if (action == UP && wb + step <= 9900) {
             wb += step;
-        } else if (action == DOWN && wb - step >= 2000) {
+        } else if (action == DOWN && wb - step >= 1800) {
             wb -= step;
         } else {
             return;
@@ -518,6 +585,28 @@ public:
                 return true;
             } 
         }
+
+        if (reqAction == SET_RECORD) {
+            printf("in SET_RECORD\n");
+            reqAction = GET_RECORD;
+            sleep_ms(100);
+            HttpClient::sendGet("transports/0/record");
+            printf("next action: GET_RECORD\n");
+            return false;
+        }
+
+        if (reqAction == GET_RECORD) {
+            printf("in GET_RECORD\n");
+            reqAction = NONE;
+
+            int newRec = get_json_bool(HttpClient::body, "recording");
+            if (newRec != UNDEF_BOOL) {
+                record = newRec;
+            }
+
+            return true;
+        }
+
 
         return false;
     }
@@ -603,6 +692,14 @@ int main() {
             } else if (app.cursor == 0) {
                 app.changeWB(App::UP);
             }
+        }
+
+        if (buttons.pressed(BUTTON_UP)) {
+            app.doAutoFocus();
+        }
+
+        if (buttons.pressed(BUTTON_DOWN)) {
+            app.toggleRecord();
         }
 
         if (buttons.pressed(JOY_LEFT)) {
