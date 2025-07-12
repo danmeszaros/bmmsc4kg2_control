@@ -49,12 +49,29 @@ add_executable(bmmsc4kg2_control
     ../Pico-LCD-1.14/c/lib/Fonts/font8.c
 )
 
+
+add_executable(bmmsc4kg2_twobutton
+    two_button.cc
+    usb_network.c
+    usb_descriptors.c
+    dhcpserver/dhcpserver.c
+    ${PICO_TINYUSB_PATH}/lib/networking/rndis_reports.c
+)
+
+
 pico_set_program_name(bmmsc4kg2_control "bmmsc4kg2_control")
 pico_set_program_version(bmmsc4kg2_control "0.1")
+
+pico_set_program_name(bmmsc4kg2_twobutton "bmmsc4kg2_twobutton")
+pico_set_program_version(bmmsc4kg2_twobutton "0.1")
+
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(bmmsc4kg2_control 1)
 pico_enable_stdio_usb(bmmsc4kg2_control 0)
+
+pico_enable_stdio_uart(bmmsc4kg2_twobutton 1)
+pico_enable_stdio_usb(bmmsc4kg2_twobutton 0)
 
 target_include_directories(bmmsc4kg2_control PRIVATE
     ${PICO_SDK_PATH}/src/rp2_common/hardware_i2c/include/
@@ -81,6 +98,17 @@ target_link_libraries(bmmsc4kg2_control
     hardware_i2c
 )
 
+target_link_libraries(bmmsc4kg2_twobutton
+    pico_stdlib
+    tinyusb_device
+    pico_lwip
+    pico_lwip_nosys
+    pico_lwip_mdns
+    pico_unique_id
+    pico_lwip_netif
+)
+
+
 # Add include directories to the build
 target_include_directories(bmmsc4kg2_control PRIVATE
     ${PICO_TINYUSB_PATH}/lib/networking # for rndis_protocol.h
@@ -88,4 +116,13 @@ target_include_directories(bmmsc4kg2_control PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
 )
 
+target_include_directories(bmmsc4kg2_twobutton PRIVATE
+    ${PICO_TINYUSB_PATH}/lib/networking # for rndis_protocol.h
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
+)
+
+
 pico_add_extra_outputs(bmmsc4kg2_control)
+pico_add_extra_outputs(bmmsc4kg2_twobutton)
+
