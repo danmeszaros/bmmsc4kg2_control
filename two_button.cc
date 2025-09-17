@@ -32,11 +32,13 @@ notes:
 
 /* network ====================================== */
 
-#define BLACK 1
-#define YELLOW 3
+#define BLACK 13
+#define YELLOW 10
 
-#define FOCUS 0
-#define RECORD 1
+
+
+#define FOCUS 1
+#define RECORD 0
 
 // usb network addresses
 static const ip4_addr_t ownip = IPADDR4_INIT_BYTES(10, 0, 7, 5);
@@ -44,7 +46,7 @@ static const ip4_addr_t ownip = IPADDR4_INIT_BYTES(10, 0, 7, 5);
 static const ip4_addr_t netmask = IPADDR4_INIT_BYTES(255, 255, 255, 0);
 static const ip4_addr_t gateway = IPADDR4_INIT_BYTES(0, 0, 0, 0);
 
-const uint LED_PIN = 25;
+// const uint LED_PIN = 25;
 const int PORT = 80;
 // const int PORT = 4000;
 
@@ -271,7 +273,7 @@ public:
     static err_t connected(void *arg, struct tcp_pcb *pcb, 
                                           err_t err)
     {
-        gpio_put(LED_PIN, 1);  
+        // gpio_put(LED_PIN, 1);  
 
         printf("*** Connected. Sending header: \n%s", httpReq);
         printf("====================\n");
@@ -288,7 +290,7 @@ public:
             tcp_close(pcb);
             pcb = NULL;
         }
-        gpio_put(LED_PIN, 0);
+        // gpio_put(LED_PIN, 0);
         return ERR_OK;
     }
 
@@ -520,13 +522,22 @@ public:
 };
 
 int main() {
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
+    // set ground for buttons
+    gpio_init(11);
+    gpio_set_dir(11, GPIO_OUT);
+    gpio_put(11, 0);
+
+    gpio_init(12);
+    gpio_set_dir(12, GPIO_OUT);
+    gpio_put(12, 0);
+
+    // gpio_init(LED_PIN);
+    //gpio_set_dir(LED_PIN, GPIO_OUT);
 
     // show we're alive
-    gpio_put(LED_PIN, 1);
+    //gpio_put(LED_PIN, 1);
     sleep_ms(500);
-    gpio_put(LED_PIN, 0);
+    ////gpio_put(LED_PIN, 0);
 
     HttpClient httpClient;
     App app;
@@ -571,9 +582,9 @@ int main() {
         }
 
         if (gpio_get(YELLOW) == false || gpio_get(BLACK) == false) {
-            gpio_put(LED_PIN, 1);
+            // gpio_put(LED_PIN, 1);
         } else {
-            gpio_put(LED_PIN, 0);
+            // gpio_put(LED_PIN, 0);
         }
 
         app.updateState();
