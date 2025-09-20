@@ -34,11 +34,13 @@ notes:
 
 #define BLACK 13
 #define YELLOW 10
+#define EXT 14
 
 
 
 #define FOCUS 1
 #define RECORD 0
+#define RECORD_EXT 2
 
 // usb network addresses
 static const ip4_addr_t ownip = IPADDR4_INIT_BYTES(10, 0, 7, 5);
@@ -99,11 +101,11 @@ int get_json_bool(const char* json, const char* key) {
 class Buttons {
 public:
 
-    const static int NUM_BUTTONS = 2;
-    static constexpr int BUTTON_PINS[NUM_BUTTONS] = {YELLOW, BLACK};
-    inline static volatile uint64_t last_interrupt_time[NUM_BUTTONS] = {0, 0};
-    inline static volatile bool button_pressed[NUM_BUTTONS] = {false, false};
-    const static int DEBOUNCE_TIME_MS = 200;
+    const static int NUM_BUTTONS = 3;
+    static constexpr int BUTTON_PINS[NUM_BUTTONS] = {YELLOW, BLACK, EXT};
+    inline static volatile uint64_t last_interrupt_time[NUM_BUTTONS] = {0, 0, 0};
+    inline static volatile bool button_pressed[NUM_BUTTONS] = {false, false, false};
+    const static int DEBOUNCE_TIME_MS = 800;
 
     static void gpio_callback(uint gpio, uint32_t events) {
         uint64_t now = time_us_64() / 1000;
@@ -531,6 +533,11 @@ int main() {
     gpio_set_dir(12, GPIO_OUT);
     gpio_put(12, 0);
 
+    gpio_init(15);
+    gpio_set_dir(15, GPIO_OUT);
+    gpio_put(15, 0);
+
+
     // gpio_init(LED_PIN);
     //gpio_set_dir(LED_PIN, GPIO_OUT);
 
@@ -577,7 +584,7 @@ int main() {
             app.doAutoFocus();
         }
 
-        if (buttons.pressed(RECORD)) {
+        if (buttons.pressed(RECORD) || buttons.pressed(RECORD_EXT)) {
             app.toggleRecord();
         }
 
