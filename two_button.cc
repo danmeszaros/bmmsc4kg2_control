@@ -15,7 +15,13 @@ extern "C" {
 
 #include "lwip/tcp.h"
 
+
 }
+
+#include <set>
+#include <string>
+#include <vector>
+
 /*
 
 notes:
@@ -152,6 +158,121 @@ public:
 };
 
 /** http ======================================== */
+
+class HttpRequest {
+public:
+    enum Type {
+        SET_RECORD,
+        DO_FOCUS,
+        SET_CLEANFEED,
+        SET_APERTURE,
+        GET_APERTURE,
+        SET_GAIN,
+        GET_GAIN,
+        SET_WB,
+        GET_WB
+    } type;
+
+    int id;
+    bool done;
+    uint64_t startTs;
+
+    std::string request;
+
+    int contentLength;
+
+    std::string responseHeader;
+    std::string responseBody;
+
+    HttpRequest(int _id, Type t) {
+        id = _id;
+        done = false;
+        startTs = time_us_64();
+        type = t;
+    }
+};
+
+class HttpClient2 {
+public:
+    std::set<HttpRequest*> activeRequests;
+    std::vector<HttpRequest*> doneRequests;
+    int cnter = 0;
+
+    static int sendReq(HttpRequest* req) {
+        printf("*** sendReq2\n");
+//        recv_len = 0;
+//        body = 0;
+//        printf("setting reqDone to false\n");
+//        reqDone = false;
+
+        struct tcp_pcb *pcb = tcp_new();
+        tcp_arg(pcb, req);
+        tcp_recv(pcb, HttpClient2::recv);
+        ip_addr_t ip;
+        IP4_ADDR(&ip, 10, 0, 7, 16);
+
+        err_t err = tcp_connect(pcb, &ip, PORT, HttpClient2::connected);
+
+        if (err != ERR_OK) {
+            tcp_abort(pcb);
+        }
+
+        return 0;
+    }
+
+    static err_t connected(void *arg, struct tcp_pcb *pcb, err_t err) {
+        // TODO
+        return 0;
+        
+    }
+
+    static err_t recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err) {
+        // TODO
+        return 0;
+    }
+
+    bool newPutRequest(HttpRequest::Type type,
+            const std::string& path, const std::string& body) {
+        HttpRequest* req = new HttpRequest(cnter++, type);
+
+        // fill req headers
+        char buff[4096];
+        snprintf(buff, sizeof(buff),
+            "PUT /control/api/v1/%s HTTP/1.1\r\n"
+            "Host: Micro-Studio-Camera-4K-G2.local\r\n"
+            "Content-Type: application/json\r\n"
+            "Content-Length: %d\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "%s\r\n",
+            path.c_str(), body.size(), body.c_str());
+            
+
+        activeRequests.insert(req);
+        // send request to server
+
+        
+
+        return true;
+    }
+
+    void updateQueue() {
+        bool restart;
+        do { // simple way to restart loop
+            restart = false;
+            auto it = activeRequests.begin();
+            while (it != activeRequests.end()) {
+                if ((*it)->done == true) {
+                    doneRequests.push_back(*it);
+                    activeRequests.erase(it);
+                    restart = true;
+                    break;
+                }
+                it++;
+            }
+        } while (restart);
+    }
+};
 
 class HttpClient {
 public:
