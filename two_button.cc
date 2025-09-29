@@ -177,16 +177,17 @@ public:
     bool done;
     uint64_t startTs;
 
-    std::string request;
+    std::string requestString;
 
     int contentLength;
 
-    std::string responseHeader;
-    std::string responseBody;
+    std::string responseString;
+    size_t headerEndPos; // pointing behing /r/n/r/n
 
     HttpRequest(int _id, Type t) {
         id = _id;
         done = false;
+        headerEndPos = std::string::npos;
         startTs = time_us_64();
         type = t;
     }
@@ -198,12 +199,47 @@ public:
     std::vector<HttpRequest*> doneRequests;
     int cnter = 0;
 
+    static char* strcasestr(const char* haystack, const char* needle) {
+        if (!*needle)
+            return (char*)haystack;
+        
+        for (; *haystack; ++haystack) {
+            const char* h = haystack;
+            const char* n = needle;
+            
+            while (*h && *n && tolower((unsigned char)*h) == tolower((unsigned char)*n)) {
+                ++h;
+                ++n;
+            }
+        
+            if (!*n)
+                return (char*)haystack;
+        }
+        
+        return NULL;
+    }
+
+
+    static int parse_content_length(const char *headers) {
+        const char *cl_key = "Content-Length:";
+        const char *p = strcasestr(headers, cl_key);  // case-insensitive search, POSIX GNU extension
+
+        if (!p) return -1;  // Content-Length not found
+
+        p += strlen(cl_key);
+
+        // Skip whitespace after "Content-Length:"
+        while (*p == ' ' || *p == '\t') p++;
+
+        // Parse number
+        int content_length = atoi(p);
+        if (content_length < 0) return -1;
+
+        return content_length;
+    }
+
     static int sendReq(HttpRequest* req) {
-        printf("*** sendReq2\n");
-//        recv_len = 0;
-//        body = 0;
-//        printf("setting reqDone to false\n");
-//        reqDone = false;
+        printf("*** #%d sendReq2\n", req->id);
 
         struct tcp_pcb *pcb = tcp_new();
         tcp_arg(pcb, req);
@@ -221,14 +257,82 @@ public:
     }
 
     static err_t connected(void *arg, struct tcp_pcb *pcb, err_t err) {
-        // TODO
-        return 0;
-        
+        HttpRequest *req = (HttpRequest*)arg;
+
+        printf("*** #%d Connected. Sending header: \n%s", req->id, req->requestString.c_str());
+        printf("====================\n");
+
+        err = tcp_write(pcb, req->requestString.c_str(), req->requestString.size(), 0);
+        if (err != ERR_OK) {
+            tcp_close(pcb);
+            pcb = NULL;
+            req->done = true;
+            return err;
+        }
+
+        err = tcp_output(pcb);
+        if (err != ERR_OK) {
+            tcp_close(pcb);
+            req->done = true;
+            pcb = NULL;
+        }
+        // gpio_put(LED_PIN, 0);
+        return ERR_OK;
     }
 
     static err_t recv(void *arg, struct tcp_pcb *pcb, struct pbuf *p, err_t err) {
-        // TODO
-        return 0;
+        HttpRequest *req = (HttpRequest*)arg;
+
+        printf("*** #%d recv\n", req->id);
+
+        if (!p) {
+            // Remote side closed the connection
+            tcp_close(pcb);
+            req->done = true;
+            return ERR_OK;
+        }
+
+        if (err != ERR_OK) {
+            // Some error occurred, free buffer and bail
+            pbuf_free(p);
+            req->done = true;
+            return err;
+        }
+
+        struct pbuf *q = p;
+        while (q != nullptr) {
+            req->responseString.append(static_cast<char*>(q->payload), q->len);
+            q = q->next;
+        }
+
+        // Tell lwIP we have received the data
+        tcp_recved(pcb, p->tot_len);
+
+        // Free the pbuf
+        pbuf_free(p);
+
+        // check if we are finished. this means that we have headers and body matches
+        // content-length
+        char *header_end = strstr(req->responseString.c_str(), "\r\n\r\n");
+        
+        if (header_end) {
+            req->headerEndPos = size_t(header_end + 4);
+
+            // Parse headers here, extract Content-Length value
+                int content_length = parse_content_length(req->responseString.c_str());
+
+                // int header_len = (header_end - buff) + 4;
+                int body_len = req->responseString.size() - req->headerEndPos;
+
+                if (body_len >= content_length) {
+                    printf("setting reqDone to true (recv1)\n");
+                    tcp_close(pcb);
+                    req->done = true;
+                    pcb = NULL;
+                }
+        }
+
+        return ERR_OK;
     }
 
     bool newPutRequest(HttpRequest::Type type,
@@ -247,11 +351,11 @@ public:
             "%s\r\n",
             path.c_str(), body.size(), body.c_str());
             
-
+        req->requestString.assign(buff);
         activeRequests.insert(req);
-        // send request to server
 
-        
+        // send request to server
+        sendReq(req);
 
         return true;
     }
