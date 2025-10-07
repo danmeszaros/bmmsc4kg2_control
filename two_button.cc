@@ -373,6 +373,8 @@ public:
     int record;
     int cleanFeed;
 
+    std::vector<int> wbValues = {2800, 4000, 5200, 6000, 7000};
+
     enum ChangeAction {
         UP = 0,
         DOWN = 1
@@ -382,6 +384,7 @@ public:
 
         gain = 0;
         wb = 3000;
+        wbIndex = 0;
         shutter = 180;
 
         cursor = 0;
@@ -432,7 +435,15 @@ public:
     }
 
     void cycleWB() {
+        wbIndex ++;
+        if (wbIndex >= wbValues.size()) {
+            wbIndex = 0;
+        }
 
+        char arg[32];
+        snprintf(arg, sizeof(arg), "{\"whiteBalance\": %d}", wbValues[wbIndex]);
+
+        httpClient.newPutRequest(SET_GAIN, "video/whiteBalance", arg);
     }
 
     void changeWB(ChangeAction action) {
