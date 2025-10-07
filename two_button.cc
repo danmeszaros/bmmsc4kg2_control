@@ -515,13 +515,7 @@ int main() {
     serial_init();
     printf("Serial initialized\n");
 
-    // gpio_init(LED_PIN);
-    //gpio_set_dir(LED_PIN, GPIO_OUT);
-
-    // show we're alive
-    //gpio_put(LED_PIN, 1);
     sleep_ms(500);
-    ////gpio_put(LED_PIN, 0);
 
     App app;
 
@@ -541,29 +535,24 @@ int main() {
 
     // enter main loop
     printf("setup complete, entering main loop\n");
-    int key = 0;
 
-    ButtonPressed buttonRecord(BUTTON_RECORD);
+    ButtonReleased buttonRecord(BUTTON_RECORD);
     ButtonPressed buttonFocus(BUTTON_FOCUS);
     ButtonReleased buttonAux(BUTTON_AUX);
 
-    while ((key != 's') && (key != 'S')) {
+    while (true) {
         usb_network_update();
-        key = getchar_timeout_us(0); // get any pending key press but don't wait
 
-        uint64_t microseconds = time_us_64();
-        uint64_t seconds = microseconds / 1000000;
-        uint64_t state = seconds % 2;
+        bool longPress = false;
 
         if (buttonFocus.buttonPressed()) {
             app.doAutoFocus();
         }
 
-        if (buttonRecord.buttonPressed()) {
+        if (buttonRecord.buttonRelease(longPress)) {
             app.toggleRecord();
         }
 
-        bool longPress = false;
         if (buttonAux.buttonRelease(longPress)) {
             if (longPress) {
                 app.toggleNativeGain();
