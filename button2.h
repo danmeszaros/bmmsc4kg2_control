@@ -5,6 +5,7 @@
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 #include <vector>
+#include <algorithm>
 
 class Button {
 private:

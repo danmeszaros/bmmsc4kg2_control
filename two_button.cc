@@ -23,7 +23,7 @@ extern "C" {
 #include <string>
 #include <vector>
 
-#include "button.h"
+#include "button2.h"
 
 /*
 
@@ -43,8 +43,8 @@ notes:
 
 #ifndef DBG
 
-#define BUTTON_FOCUS 13
-#define BUTTON_AUX 10
+#define BUTTON_FOCUS 10
+#define BUTTON_AUX 13
 #define BUTTON_RECORD 14
 
 #else
@@ -536,29 +536,29 @@ int main() {
     // enter main loop
     printf("setup complete, entering main loop\n");
 
-    ButtonReleased buttonRecord(BUTTON_RECORD);
-    ButtonReleased buttonFocus(BUTTON_FOCUS);
-    ButtonReleased buttonAux(BUTTON_AUX);
+    ButtonRelease buttonRecord(BUTTON_RECORD);
+    ButtonRelease buttonFocus(BUTTON_FOCUS);
+    ButtonRelease buttonAux(BUTTON_AUX);
 
     while (true) {
         usb_network_update();
 
-        bool longPress = false;
+        bool wasShort = false;
 
-        if (buttonFocus.buttonRelease(longPress)) {
+        if (buttonFocus.longPress()) {
             app.doAutoFocus();
         }
 
-        if (buttonRecord.buttonRelease(longPress)) {
+        if (buttonRecord.longPress()) {
             app.toggleRecord();
         }
 
-        if (buttonAux.buttonRelease(longPress)) {
-            if (longPress) {
-                app.toggleNativeGain();
-            } else {
-                app.cycleWB();
-            }
+        if (buttonAux.longPress()) {
+            app.toggleNativeGain();
+        }
+
+        if (buttonAux.released(wasShort) && wasShort) {
+            app.cycleWB();
         }
 
         app.updateState();
