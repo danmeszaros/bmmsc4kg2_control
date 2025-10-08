@@ -537,7 +537,7 @@ int main() {
     printf("setup complete, entering main loop\n");
 
     ButtonReleased buttonRecord(BUTTON_RECORD);
-    ButtonPressed buttonFocus(BUTTON_FOCUS);
+    ButtonReleased buttonFocus(BUTTON_FOCUS);
     ButtonReleased buttonAux(BUTTON_AUX);
 
     while (true) {
@@ -545,7 +545,7 @@ int main() {
 
         bool longPress = false;
 
-        if (buttonFocus.buttonPressed()) {
+        if (buttonFocus.buttonRelease(longPress)) {
             app.doAutoFocus();
         }
 

@@ -1,6 +1,8 @@
 #pragma once
 #include "pico/stdlib.h"
 
+#include <map>
+
 class ButtonReleased {
 public:
     // pin: GPIO number
@@ -17,7 +19,9 @@ public:
         else
             gpio_pull_down(pin_);
 
-        instance_ = this;  // static handler reference
+        // Register this instance by pin
+        instances_[pin_] = this;
+
         gpio_set_irq_enabled_with_callback(
             pin_,
             GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL,
@@ -48,7 +52,10 @@ private:
     }
 
     static void gpio_callback(uint gpio, uint32_t events) {
-        if (instance_) instance_->handle_interrupt(events);
+        auto it = instances_.find(gpio);
+        if (it != instances_.end() && it->second) {
+            it->second->handle_interrupt(events);
+        }
     }
 
     void handle_interrupt(uint32_t events) {
@@ -81,7 +88,8 @@ private:
     uint32_t press_duration_;
     uint32_t last_event_time_;
 
-    inline static ButtonReleased *instance_ = nullptr;
+    // Static map of pin → instance (one shared callback)
+    inline static std::map<uint, ButtonReleased*> instances_{};
 };
 
 class ButtonPressed {
@@ -89,7 +97,7 @@ public:
     // pin: GPIO number
     // active_low: true if button pulls pin low when pressed
     // debounce_ms: debounce interval
-    ButtonPressed(uint pin, bool active_low = true, uint debounce_ms = 30)
+    ButtonPressed(uint pin, bool active_low = true, uint debounce_ms = 200)
         : pin_(pin), active_low_(active_low), debounce_ms_(debounce_ms)
     {
         gpio_init(pin_);
@@ -99,7 +107,9 @@ public:
         else
             gpio_pull_down(pin_);
 
-        instance_ = this;  // static instance for callback
+        // Register this instance by pin
+        instances_[pin_] = this;
+
         gpio_set_irq_enabled_with_callback(
             pin_,
             GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL,
@@ -128,7 +138,10 @@ private:
     }
 
     static void gpio_callback(uint gpio, uint32_t events) {
-        if (instance_) instance_->handle_interrupt(events);
+        auto it = instances_.find(gpio);
+        if (it != instances_.end() && it->second) {
+            it->second->handle_interrupt(events);
+        }
     }
 
     void handle_interrupt(uint32_t events) {
@@ -152,5 +165,6 @@ private:
     bool pressed_state_;
     uint32_t last_event_time_;
 
-    inline static ButtonPressed *instance_ = nullptr;
+    // Static map of pin → instance (one shared callback)
+    inline static std::map<uint, ButtonPressed*> instances_{};
 };
