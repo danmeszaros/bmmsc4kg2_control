@@ -50,8 +50,8 @@ add_executable(bmmsc4kg2_control
 )
 
 
-add_executable(bmmsc4kg2_twobutton
-    two_button.cc
+add_executable(bmmsc4kg2_threebutton
+    three_button.cc
     usb_network.c
     usb_descriptors.c
     dhcpserver/dhcpserver.c
@@ -62,16 +62,16 @@ add_executable(bmmsc4kg2_twobutton
 pico_set_program_name(bmmsc4kg2_control "bmmsc4kg2_control")
 pico_set_program_version(bmmsc4kg2_control "0.1")
 
-pico_set_program_name(bmmsc4kg2_twobutton "bmmsc4kg2_twobutton")
-pico_set_program_version(bmmsc4kg2_twobutton "0.1")
+pico_set_program_name(bmmsc4kg2_threebutton "bmmsc4kg2_threebutton")
+pico_set_program_version(bmmsc4kg2_threebutton "0.1")
 
 
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_uart(bmmsc4kg2_control 1)
 pico_enable_stdio_usb(bmmsc4kg2_control 0)
 
-pico_enable_stdio_uart(bmmsc4kg2_twobutton 1)
-pico_enable_stdio_usb(bmmsc4kg2_twobutton 0)
+pico_enable_stdio_uart(bmmsc4kg2_threebutton 1)
+pico_enable_stdio_usb(bmmsc4kg2_threebutton 0)
 
 target_include_directories(bmmsc4kg2_control PRIVATE
     ${PICO_SDK_PATH}/src/rp2_common/hardware_i2c/include/
@@ -98,7 +98,7 @@ target_link_libraries(bmmsc4kg2_control
     hardware_i2c
 )
 
-target_link_libraries(bmmsc4kg2_twobutton
+target_link_libraries(bmmsc4kg2_threebutton
     pico_stdlib
     tinyusb_device
     pico_lwip
@@ -116,7 +116,7 @@ target_include_directories(bmmsc4kg2_control PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
 )
 
-target_include_directories(bmmsc4kg2_twobutton PRIVATE
+target_include_directories(bmmsc4kg2_threebutton PRIVATE
     ${PICO_TINYUSB_PATH}/lib/networking # for rndis_protocol.h
     ${CMAKE_CURRENT_LIST_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/.. # for our common lwipopts or any other standard includes, if required
@@ -124,5 +124,5 @@ target_include_directories(bmmsc4kg2_twobutton PRIVATE
 
 
 pico_add_extra_outputs(bmmsc4kg2_control)
-pico_add_extra_outputs(bmmsc4kg2_twobutton)
+pico_add_extra_outputs(bmmsc4kg2_threebutton)
 
