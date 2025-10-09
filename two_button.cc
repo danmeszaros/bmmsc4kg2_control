@@ -358,7 +358,8 @@ public:
         SET_GAIN,
         GET_GAIN,
         SET_WB,
-        GET_WB
+        GET_WB,
+        SET_DEBUG
     } actionType;
 
     HttpClient httpClient;
@@ -391,6 +392,10 @@ public:
 
         record = 0;
         cleanFeed = 0;
+    }
+
+    void sendDebugRequest(const std::string& message) {
+        httpClient.newPutRequest(SET_DEBUG, "debug/" + message, "");
     }
 
     void changeGain(ChangeAction action) {
@@ -458,6 +463,10 @@ public:
         }
 
         // HttpClient::sendPutInt("video/whiteBalance", "whiteBalance", wb);
+    }
+
+    void autoWB() {
+        httpClient.newPutRequest(SET_GAIN, "video/whiteBalance/doAuto", "");
     }
 
     bool updateState() {
@@ -543,27 +552,47 @@ int main() {
     while (true) {
         usb_network_update();
 
-        bool wasShort = false;
-
-        if (buttonFocus.pressed()) {
-            app.doAutoFocus();
-        }
-
-        if (buttonRecord.pressed()) {
+        // RECORD button
+        if (buttonRecord.shortPressed()) {
             app.toggleRecord();
         }
 
-//        if (buttonAux.longPress()) {
-//            app.toggleNativeGain();
-//        }
+        // FOCUS button
+        if (buttonFocus.shortPressed()) {
+            app.doAutoFocus();
+        }
 
-//        if (buttonAux.released(wasShort) && wasShort) {
-//            app.cycleWB();
-//        }
+        if (buttonFocus.longPressed()) {
+            app.toggleNativeGain();
+        }
 
-        if (buttonAux.pressed()) {
+
+        // AUX button
+        if (buttonAux.shortPressed()) {
             app.cycleWB();
         }
+
+        if (buttonAux.longPressed()) {
+            app.autoWB();
+        }
+
+#if 0
+        if (buttonFocus.pressed()) {
+            app.sendDebugRequest("pressed");
+        }
+
+        if (buttonFocus.released(wasShort)) {
+            if (wasShort) {
+                app.sendDebugRequest("releaseShort");
+            } else {
+                app.sendDebugRequest("releaseLong");
+            }
+        }
+
+        if (buttonFocus.longPressed()) {
+            app.sendDebugRequest("longPress");
+        }
+#endif
 
         app.updateState();
 
