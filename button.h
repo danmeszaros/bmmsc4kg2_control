@@ -70,6 +70,9 @@ public:
             return true;
         }
 
+        // TODO: know issue: if nobody calls release(), cycle never restarts 
+        // and pressed never returns true again
+
         return false;
     }
 
