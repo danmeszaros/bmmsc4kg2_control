@@ -46,6 +46,7 @@ notes:
 #define BUTTON_FOCUS 10
 #define BUTTON_AUX 13
 #define BUTTON_RECORD 14
+#define BUTTON_FOCUS2 15
 
 #else
 // define dbg buttons
@@ -514,9 +515,9 @@ int main() {
     gpio_set_dir(12, GPIO_OUT);
     gpio_put(12, 0);
 
-    gpio_init(15);
-    gpio_set_dir(15, GPIO_OUT);
-    gpio_put(15, 0);
+    gpio_init(7);
+    gpio_set_dir(7, GPIO_OUT);
+    gpio_put(7, 0);
 #endif
 
     stdio_uart_init();
@@ -547,14 +548,27 @@ int main() {
 
     Button buttonRecord(BUTTON_RECORD);
     Button buttonFocus(BUTTON_FOCUS);
+    Button buttonFocus2(BUTTON_FOCUS2);
     Button buttonAux(BUTTON_AUX);
 
     while (true) {
         usb_network_update();
 
         // RECORD button
-        if (buttonRecord.shortPressed()) {
+        if (buttonRecord.pressed()) {
             app.toggleRecord();
+        }
+
+        if (buttonRecord.shortPressed()) {
+            // nothing here
+        }
+
+        if (buttonFocus2.pressed()) {
+            app.doAutoFocus();
+        }
+
+        if (buttonFocus2.shortPressed()) {
+            // nothing here
         }
 
         // FOCUS button
